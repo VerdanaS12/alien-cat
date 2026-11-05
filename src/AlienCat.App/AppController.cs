@@ -26,7 +26,7 @@ internal sealed class AppController : IDisposable
     readonly JsonFileStore<List<CatTask>> _cacheStore;
     readonly JsonFileStore<AppState> _stateStore;
     readonly ISecretProtector _protector = new DpapiProtector();
-    readonly DateTimeOffset _sessionStart = DateTimeOffset.Now;
+    readonly ReminderSession _session = new(DateTimeOffset.Now);
     readonly PetRunner _runner;
     readonly TrayIcon _tray;
     readonly DispatcherTimer _pollTimer;
@@ -42,7 +42,6 @@ internal sealed class AppController : IDisposable
     QuickNoteWindow? _note;
     string? _lastError;
     bool _polling;
-    bool _firstPollDone;
 
     public AppController(AnimationCatalog catalog)
     {
@@ -114,7 +113,7 @@ internal sealed class AppController : IDisposable
             {
                 case SyncStatus.Online:
                     _lastError = null;
-                    CleanupState(result.Tasks);
+                    if (ReminderSession.Prune(_sync.State, result.Tasks)) _sync.SaveState();
                     break;
                 case SyncStatus.Offline:
                     _log.Info("Notion недоступен, работаю по сохранённому списку");
@@ -124,11 +123,7 @@ internal sealed class AppController : IDisposable
                     ReportError(result.Message ?? "Ошибка Notion");
                     break;
             }
-            if (!_firstPollDone)
-            {
-                _firstPollDone = true;
-                ShowMorningIfNeeded();
-            }
+            ShowMorningIfNeeded();
             CloseSignIfTaskGone();
             _today?.Refresh();
         }
@@ -142,23 +137,11 @@ internal sealed class AppController : IDisposable
         }
     }
 
-    void ReportError(string message)
+    void ReportError(string message, bool userAction = false)
     {
-        if (message == _lastError) return;
+        if (message == _lastError && !userAction) return;
         _lastError = message;
         _tray.ShowBalloon("Космокот грустит", message);
-    }
-
-    /// <summary>Forget snoozes and handled reminders of tasks that no longer exist.</summary>
-    void CleanupState(IReadOnlyList<CatTask> tasks)
-    {
-        if (_sync is null) return;
-        var ids = tasks.Select(t => t.Id).ToHashSet();
-        var state = _sync.State;
-        var changed = false;
-        foreach (var id in state.Snoozes.Keys.Where(id => !ids.Contains(id)).ToList()) { state.Snoozes.Remove(id); changed = true; }
-        changed |= state.HandledKeys.RemoveWhere(k => !ids.Contains(k.Split('|')[0])) > 0;
-        if (changed) _sync.SaveState();
     }
 
     bool HasOverdue() => _sync is not null && ReminderEngine.HasOverdue(_sync.Current, DateTimeOffset.Now);
@@ -167,8 +150,14 @@ internal sealed class AppController : IDisposable
 
     void CheckReminders()
     {
-        if (_sync is null) return;
         var now = DateTimeOffset.Now;
+        if (_session.Tick(now))
+        {
+            _log.Info("Компьютер проснулся");
+            _ = PollAsync();
+            return;
+        }
+        if (_sync is null) return;
         if (_sign is not null)
         {
             Brain.Nagging = ReminderEngine.IsNagging(_signShownAt, now);
@@ -176,7 +165,7 @@ internal sealed class AppController : IDisposable
         }
         if (Brain.Activity is PetActivity.Hidden or PetActivity.Dragged) return;
 
-        var pending = ReminderEngine.GetPending(_sync.Current, now, _sessionStart, _sync.State.Snoozes,
+        var pending = ReminderEngine.GetPending(_sync.Current, now, _session.SessionStart, _sync.State.Snoozes,
             _sync.State.HandledKeys, _settings.Quiet, TimeZoneInfo.Local);
         if (pending.Count == 0) return;
         ShowSign(pending[0]);
@@ -234,18 +223,18 @@ internal sealed class AppController : IDisposable
     void CloseSignIfTaskGone()
     {
         if (_sign is null || _sync is null) return;
-        var id = _sign.Reminder.Task.Id;
-        var task = _sync.Current.FirstOrDefault(t => t.Id == id);
-        if (task is null || task.Done || task.Due != _sign.Reminder.Task.Due) CloseSign(done: false);
+        if (ReminderSession.ShouldCloseSign(_sign.Reminder, _sync.Current)) CloseSign(done: false);
     }
 
     async Task CompleteAsync(CatTask task)
     {
-        if (_sync is null) return;
+        var sync = _sync;
+        if (sync is null) return;
         try
         {
-            var status = await _sync.CompleteAsync(task, CancellationToken.None);
-            if (status == SyncStatus.Error) ReportError("Не получилось отметить задачу в Notion.");
+            var status = await sync.CompleteAsync(task, CancellationToken.None);
+            if (status == SyncStatus.Error)
+                ReportError("Не получилось отметить задачу в Notion. Котик попробует ещё раз позже.", userAction: true);
         }
         catch (Exception ex)
         {
@@ -258,10 +247,8 @@ internal sealed class AppController : IDisposable
 
     void ShowMorningIfNeeded()
     {
-        if (_sync is null) return;
-        var today = DateOnly.FromDateTime(DateTime.Now);
-        if (_sync.State.LastMorning == today) return;
-        _sync.State.LastMorning = today;
+        if (_sync is null || !ReminderSession.ShouldShowMorning(_sync.State, DateTimeOffset.Now, TimeZoneInfo.Local)) return;
+        _sync.State.LastMorning = DateOnly.FromDateTime(DateTime.Now);
         _sync.SaveState();
         if (ReminderEngine.MorningSummary(_sync.Current, DateTimeOffset.Now, TimeZoneInfo.Local).Count > 0) ShowToday();
     }
@@ -285,11 +272,20 @@ internal sealed class AppController : IDisposable
             return;
         }
         _note = new QuickNoteWindow();
+        var sync = _sync;
         _note.Saved += async text =>
         {
-            var status = await _sync.AddNoteAsync(text, CancellationToken.None);
-            if (status == SyncStatus.Error) ReportError("Не получилось сохранить заметку в Notion.");
-            else Brain.Click();
+            try
+            {
+                var status = await sync.AddNoteAsync(text, CancellationToken.None);
+                if (status == SyncStatus.Error)
+                    ReportError("Notion не принял заметку. Котик сохранил её и отправит позже.", userAction: true);
+                else Brain.Click();
+            }
+            catch (Exception ex)
+            {
+                _log.Error("Не удалось сохранить заметку", ex);
+            }
         };
         _note.Closed += (_, _) => _note = null;
         _note.Show();

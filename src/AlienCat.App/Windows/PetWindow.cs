@@ -42,6 +42,7 @@ internal sealed class PetWindow : SpriteWindow
     {
         base.OnMouseMove(e);
         if (!_down) return;
+        if (e.LeftButton != MouseButtonState.Pressed) { FinishGesture(); return; }
         var p = ScreenPoint(e);
         var target = new Vec(p.X + _grabOffset.X, p.Y + _grabOffset.Y);
         if (!_dragging && (Math.Abs(p.X - _downScreen.X) > ClickSlop || Math.Abs(p.Y - _downScreen.Y) > ClickSlop))
@@ -56,11 +57,25 @@ internal sealed class PetWindow : SpriteWindow
     {
         base.OnMouseLeftButtonUp(e);
         if (!_down) return;
+        var wasDragging = _dragging;
+        FinishGesture();
+        if (!wasDragging) Clicked?.Invoke();
+    }
+
+    protected override void OnLostMouseCapture(MouseEventArgs e)
+    {
+        base.OnLostMouseCapture(e);
+        FinishGesture(); // Alt+Tab, Win key, UAC… must not leave the cat stuck mid-drag
+    }
+
+    void FinishGesture()
+    {
+        if (!_down) return;
         _down = false;
-        ReleaseMouseCapture();
-        if (_dragging) DragEnded?.Invoke();
-        else Clicked?.Invoke();
+        var wasDragging = _dragging;
         _dragging = false;
+        if (IsMouseCaptured) ReleaseMouseCapture();
+        if (wasDragging) DragEnded?.Invoke();
     }
 
     Point ScreenPoint(MouseEventArgs e)
