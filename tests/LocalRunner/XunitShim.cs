@@ -72,6 +72,9 @@ public static class Assert
         return list[0];
     }
 
+    public static T Single<T>(IEnumerable<T> collection, Predicate<T> predicate) =>
+        Single(collection.Where(x => predicate(x)));
+
     public static void Contains<T>(T expected, IEnumerable<T> collection)
     {
         if (!collection.Contains(expected)) Fail($"Not found: {expected}");
