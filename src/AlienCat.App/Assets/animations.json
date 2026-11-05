@@ -1,13 +1,19 @@
 {
   "sheets": {
     "cat.png": {
-      "columns": 16
+      "columns": 16,
+      "cell": 64,
+      "frameCount": 105
     },
     "toys.png": {
-      "columns": 8
+      "columns": 8,
+      "cell": 24,
+      "frameCount": 16
     },
     "fx.png": {
-      "columns": 8
+      "columns": 8,
+      "cell": 32,
+      "frameCount": 12
     }
   },
   "clips": {

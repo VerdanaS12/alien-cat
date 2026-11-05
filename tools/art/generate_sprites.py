@@ -950,7 +950,11 @@ def main():
     for name in fx:
         clips_json[name] = {"sheet": "fx.png", "frameWidth": 32, "frameHeight": 32,
                             "frames": fx_idx[name], "frameMs": fx_ms[name], "loop": True}
-    sheets = {"cat.png": {"columns": 16}, "toys.png": {"columns": 8}, "fx.png": {"columns": 8}}
+    def info(idx, cols, cell):
+        count = sum(len(v) for v in idx.values())
+        return {"columns": cols, "cell": cell, "frameCount": count}
+
+    sheets = {"cat.png": info(cat_idx, 16, 64), "toys.png": info(toy_idx, 8, 24), "fx.png": info(fx_idx, 8, 32)}
     (ASSETS / "animations.json").write_text(
         json.dumps({"sheets": sheets, "clips": clips_json}, ensure_ascii=False, indent=2), "utf-8")
 
