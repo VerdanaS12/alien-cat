@@ -12,7 +12,13 @@
     <InvariantGlobalization>false</InvariantGlobalization>
     <Product>Космокот</Product>
     <Version>1.0.0</Version>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- WinForms is only used for the tray icon; keep its namespaces out of the implicit usings to avoid WPF/WinForms clashes. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\AlienCat.Core\AlienCat.Core.csproj" />
   </ItemGroup>
