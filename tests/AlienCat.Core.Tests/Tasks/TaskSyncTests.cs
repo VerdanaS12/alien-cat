@@ -179,4 +179,49 @@ public class TaskSyncTests : IDisposable
         var r = await sync.PollAsync(default);
         Assert.Empty(r.Tasks);
     }
+
+    [Fact]
+    public async Task AddNote_Unauthorized_KeepsNoteQueuedAndReportsError()
+    {
+        _gw.Failures.Enqueue(NotionErrorKind.Unauthorized);
+        var sync = Sync();
+        Assert.Equal(SyncStatus.Error, await sync.AddNoteAsync("идея", default));
+        Assert.Equal("идея", Assert.Single(StateStore.Load().Queue).Text);
+    }
+
+    [Fact]
+    public async Task Complete_UnknownError_QueuesInsteadOfLosing()
+    {
+        _gw.Tasks = [T("a")];
+        var sync = Sync();
+        await sync.PollAsync(default);
+        _gw.Failures.Enqueue(NotionErrorKind.Unknown);
+        Assert.Equal(SyncStatus.Offline, await sync.CompleteAsync(sync.Current[0], default));
+        Assert.Equal("a", Assert.Single(StateStore.Load().Queue).PageId);
+    }
+
+    [Fact]
+    public async Task Poll_FlushUnauthorized_KeepsQueueAndReportsError()
+    {
+        var st = new AppState();
+        st.Queue.Add(new PendingOp(PendingOpKind.MarkDone, "a", null, null));
+        StateStore.Save(st);
+        _gw.Failures.Enqueue(NotionErrorKind.Unauthorized);
+        var r = await Sync().PollAsync(default);
+        Assert.Equal(SyncStatus.Error, r.Status);
+        Assert.Equal(TaskSync.MsgUnauthorized, r.Message);
+        Assert.Single(StateStore.Load().Queue);
+    }
+
+    [Fact]
+    public async Task Poll_FlushNoteNotFound_KeepsNote()
+    {
+        var st = new AppState();
+        st.Queue.Add(new PendingOp(PendingOpKind.CreateNote, null, null, "идея"));
+        StateStore.Save(st);
+        _gw.Failures.Enqueue(NotionErrorKind.NotFound);
+        var r = await Sync().PollAsync(default);
+        Assert.Equal(SyncStatus.Error, r.Status);
+        Assert.Single(StateStore.Load().Queue);
+    }
 }

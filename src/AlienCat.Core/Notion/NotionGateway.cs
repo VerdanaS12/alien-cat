@@ -191,6 +191,7 @@ public sealed class NotionGateway : INotionGateway
             HttpStatusCode.Unauthorized => new NotionException(NotionErrorKind.Unauthorized, message),
             HttpStatusCode.Forbidden or HttpStatusCode.NotFound => new NotionException(NotionErrorKind.NotFound, message),
             HttpStatusCode.TooManyRequests => new NotionException(NotionErrorKind.RateLimited, message),
+            HttpStatusCode.Conflict => new NotionException(NotionErrorKind.Network, message), // transient, retry later
             HttpStatusCode.BadRequest => new NotionException(NotionErrorKind.Schema, message),
             >= HttpStatusCode.InternalServerError => new NotionException(NotionErrorKind.Network, message),
             _ => new NotionException(NotionErrorKind.Unknown, message),

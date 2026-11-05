@@ -51,7 +51,7 @@ public sealed class TaskSync
             _cache.Save(_current);
             return new SyncResult(_current, SyncStatus.Online, null);
         }
-        catch (NotionException ex) when (ex.Kind is NotionErrorKind.Network or NotionErrorKind.RateLimited)
+        catch (NotionException ex) when (Retryable(ex.Kind))
         {
             return new SyncResult(_current, SyncStatus.Offline, null);
         }
@@ -95,17 +95,30 @@ public sealed class TaskSync
             await ApplyAsync(op, ct);
             return SyncStatus.Online;
         }
-        catch (NotionException ex) when (ex.Kind is NotionErrorKind.Network or NotionErrorKind.RateLimited)
+        catch (NotionException ex) when (Retryable(ex.Kind))
         {
-            State.Queue.Add(op);
-            SaveState();
+            Enqueue(op);
             return SyncStatus.Offline;
+        }
+        catch (NotionException ex) when (ex.Kind == NotionErrorKind.Unauthorized || ex.Kind == NotionErrorKind.NotFound && op.Kind == PendingOpKind.CreateNote)
+        {
+            Enqueue(op); // keep it: it goes through once the key or access is fixed
+            return SyncStatus.Error;
         }
         catch (NotionException)
         {
-            return SyncStatus.Error;
+            return SyncStatus.Error; // the page is gone or the change was rejected
         }
     }
+
+    void Enqueue(PendingOp op)
+    {
+        State.Queue.Add(op);
+        SaveState();
+    }
+
+    static bool Retryable(NotionErrorKind kind) =>
+        kind is NotionErrorKind.Network or NotionErrorKind.RateLimited or NotionErrorKind.Unknown;
 
     /// <summary>Sends queued changes in order; false if the network failed part-way.</summary>
     async Task<bool> FlushQueueAsync(CancellationToken ct)
@@ -119,7 +132,8 @@ public sealed class TaskSync
                 {
                     await ApplyAsync(State.Queue[0], ct);
                 }
-                catch (NotionException ex) when (ex.Kind is NotionErrorKind.NotFound or NotionErrorKind.Schema)
+                catch (NotionException ex) when (ex.Kind == NotionErrorKind.Schema
+                                                 || ex.Kind == NotionErrorKind.NotFound && State.Queue[0].Kind != PendingOpKind.CreateNote)
                 {
                     // page deleted or change rejected: drop it so the queue cannot jam
                 }
@@ -128,7 +142,7 @@ public sealed class TaskSync
             }
             return true;
         }
-        catch (NotionException ex) when (ex.Kind is NotionErrorKind.Network or NotionErrorKind.RateLimited)
+        catch (NotionException ex) when (Retryable(ex.Kind))
         {
             return false;
         }

@@ -167,4 +167,12 @@ public class NotionGatewayTests
         Assert.False(check.Ok);
         Assert.Equal(new[] { "Готово", "Повтор" }, check.MissingFields.ToArray());
     }
+
+    [Fact]
+    public async Task Patch_409Conflict_IsRetryableNetwork()
+    {
+        _http.Respond(HttpStatusCode.Conflict, "{\"object\":\"error\",\"status\":409,\"code\":\"conflict_error\",\"message\":\"Conflict\"}");
+        var ex = await Assert.ThrowsAsync<NotionException>(() => Gateway().MarkDoneAsync("p", default));
+        Assert.Equal(NotionErrorKind.Network, ex.Kind);
+    }
 }
