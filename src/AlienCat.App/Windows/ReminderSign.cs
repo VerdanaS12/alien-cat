@@ -79,8 +79,8 @@ internal sealed class ReminderSign : Window
         if (ActualWidth <= 0) return;
         var left = Math.Clamp(catCenterX - ActualWidth / 2, screenLeft, Math.Max(screenLeft, screenRight - ActualWidth));
         var top = Math.Max(0, catTop - ActualHeight + 8);
-        if (Math.Abs(Left - left) > 0.5) Left = left;
-        if (Math.Abs(Top - top) > 0.5) Top = top;
+        if (double.IsNaN(Left) || Math.Abs(Left - left) > 0.5) Left = left;
+        if (double.IsNaN(Top) || Math.Abs(Top - top) > 0.5) Top = top;
     }
 
     static string Shorten(string title)

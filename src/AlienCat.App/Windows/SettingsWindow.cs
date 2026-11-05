@@ -57,11 +57,11 @@ internal sealed class SettingsWindow : Window
         notion.Children.Add(Ui.Label("Notion", 15, true));
         notion.Children.Add(Field(settings.ProtectedToken is null ? "Ключ интеграции" : "Ключ интеграции (сохранён; введите новый, чтобы заменить)", _token));
         notion.Children.Add(Field("Ссылка на базу «Задачи котика»", _url));
-        var check = Ui.Button("Проверить подключение");
-        check.Margin = new Thickness(0, 10, 0, 0);
-        check.HorizontalAlignment = HorizontalAlignment.Left;
-        check.Click += async (_, _) => await CheckAsync();
-        notion.Children.Add(check);
+        var checkButton = Ui.Button("Проверить подключение");
+        checkButton.Margin = new Thickness(0, 10, 0, 0);
+        checkButton.HorizontalAlignment = HorizontalAlignment.Left;
+        checkButton.Click += async (_, _) => await CheckAsync();
+        notion.Children.Add(checkButton);
         notion.Children.Add(Spaced(_status));
         var help = new TextBlock { Margin = new Thickness(0, 8, 0, 0) };
         var link = new System.Windows.Documents.Hyperlink(new System.Windows.Documents.Run("Как подключить Notion?"));

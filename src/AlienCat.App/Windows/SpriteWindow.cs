@@ -57,8 +57,8 @@ internal class SpriteWindow : Window
     {
         var left = Math.Round(centerX - Size / 2);
         var top = Math.Round(bottomY - Size + footOffset * Scale);
-        if (Math.Abs(Left - left) > 0.1) Left = left;
-        if (Math.Abs(Top - top) > 0.1) Top = top;
+        if (double.IsNaN(Left) || Math.Abs(Left - left) > 0.1) Left = left;
+        if (double.IsNaN(Top) || Math.Abs(Top - top) > 0.1) Top = top;
     }
 
     protected override void OnSourceInitialized(EventArgs e)
