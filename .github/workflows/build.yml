@@ -4,6 +4,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   windows:
     runs-on: windows-latest
@@ -31,6 +34,18 @@ jobs:
         with:
           name: AlienCat
           path: build/package/
+
+      - name: Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          Compress-Archive -Path build/package/* -DestinationPath build/AlienCat.zip -Force
+          $notes = "Сборка из ветки ${{ github.ref_name }}, коммит ${{ github.sha }}. Скачайте AlienCat.zip, распакуйте и запустите AlienCat.exe."
+          gh release view latest *> $null
+          if ($LASTEXITCODE -ne 0) { gh release create latest --title "Космокот" --notes $notes --target ${{ github.sha }} }
+          else { gh release edit latest --notes $notes }
+          gh release upload latest build/AlienCat.zip --clobber
 
       - uses: actions/upload-artifact@v4
         if: always()
