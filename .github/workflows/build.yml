@@ -1,0 +1,39 @@
+name: build
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Test
+        run: dotnet test tests/AlienCat.Core.Tests/AlienCat.Core.Tests.csproj -c Release --logger "trx;LogFileName=results.trx" --logger "console;verbosity=normal"
+
+      - name: Publish
+        shell: pwsh
+        run: |
+          dotnet publish src/AlienCat.App/AlienCat.App.csproj -c Release -r win-x64 --self-contained true `
+            -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o build/publish
+          New-Item -ItemType Directory -Force build/package | Out-Null
+          Copy-Item build/publish/AlienCat.exe build/package/
+          if (Test-Path README.md) { Copy-Item README.md build/package/ }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AlienCat
+          path: build/package/
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: tests/AlienCat.Core.Tests/TestResults/

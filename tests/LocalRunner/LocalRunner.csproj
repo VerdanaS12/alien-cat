@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Local-only runner: compiles the xUnit test sources against a tiny shim, for environments without NuGet. CI uses real xUnit. -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <NoWarn>$(NoWarn);CS1998</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\AlienCat.Core.Tests\**\*.cs" Exclude="..\AlienCat.Core.Tests\obj\**;..\AlienCat.Core.Tests\bin\**" />
+    <ProjectReference Include="..\..\src\AlienCat.Core\AlienCat.Core.csproj" />
+    <None Include="..\..\src\AlienCat.App\Assets\animations.json" Link="Assets\animations.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>
