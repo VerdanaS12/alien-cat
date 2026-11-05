@@ -11,13 +11,13 @@ public class NotionMapperTests
     static CatTask? Map(string json) => NotionMapper.FromPage(JsonDocument.Parse(json).RootElement, Kyiv);
 
     [Theory]
-    [InlineData("https://www.notion.so/myspace/56d000dc94664d21813832c9a254a201?v=0123456789abcdef0123456789abcdef")]
-    [InlineData("https://app.notion.com/p/56d000dc94664d21813832c9a254a201")]
-    [InlineData("https://www.notion.so/Zadachi-kotika-56d000dc94664d21813832c9a254a201")]
-    [InlineData("56d000dc-9466-4d21-8138-32c9a254a201")]
-    [InlineData("  56D000DC94664D21813832C9A254A201 ")]
+    [InlineData("https://www.notion.so/myspace/0f1e2d3c4b5a69788796a5b4c3d2e1f0?v=0123456789abcdef0123456789abcdef")]
+    [InlineData("https://app.notion.com/p/0f1e2d3c4b5a69788796a5b4c3d2e1f0")]
+    [InlineData("https://www.notion.so/Zadachi-kotika-0f1e2d3c4b5a69788796a5b4c3d2e1f0")]
+    [InlineData("0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0")]
+    [InlineData("  0F1E2D3C4B5A69788796A5B4C3D2E1F0 ")]
     public void ParseDatabaseId_AcceptsUrlsAndIds(string input) =>
-        Assert.Equal("56d000dc-9466-4d21-8138-32c9a254a201", NotionIds.ParseDatabaseId(input));
+        Assert.Equal("0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0", NotionIds.ParseDatabaseId(input));
 
     [Theory]
     [InlineData("")]

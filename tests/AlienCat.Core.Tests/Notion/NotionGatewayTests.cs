@@ -8,8 +8,8 @@ namespace AlienCat.Core.Tests.Notion;
 
 public class NotionGatewayTests
 {
-    const string DbUrl = "https://app.notion.com/p/56d000dc94664d21813832c9a254a201";
-    const string Ds = "9840254b-9621-4782-9d64-aa84a155787e";
+    const string DbUrl = "https://app.notion.com/p/0f1e2d3c4b5a69788796a5b4c3d2e1f0";
+    const string Ds = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
     readonly FakeHttpHandler _http = new();
     readonly List<TimeSpan> _delays = new();
 
@@ -43,7 +43,7 @@ public class NotionGatewayTests
         await g.QueryOpenTasksAsync(Until, default);
         await g.QueryOpenTasksAsync(Until, default);
         Assert.Single(_http.Requests, r => r.Url.Contains("/v1/databases/"));
-        Assert.Equal("https://api.notion.com/v1/databases/56d000dc-9466-4d21-8138-32c9a254a201", _http.Requests[0].Url);
+        Assert.Equal("https://api.notion.com/v1/databases/0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0", _http.Requests[0].Url);
     }
 
     [Fact]

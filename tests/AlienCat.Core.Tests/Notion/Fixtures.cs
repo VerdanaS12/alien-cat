@@ -30,11 +30,11 @@ internal static class Fixtures
         ",\"has_more\":" + (nextCursor == "null" ? "false" : "true") + "}";
 
     public const string Database = """
-        {"object":"database","id":"56d000dc-9466-4d21-8138-32c9a254a201","data_sources":[{"id":"9840254b-9621-4782-9d64-aa84a155787e","name":"Задачи котика"}]}
+        {"object":"database","id":"0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0","data_sources":[{"id":"a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d","name":"Задачи котика"}]}
         """;
 
     const string DsHead = """
-        {"object":"data_source","id":"9840254b-9621-4782-9d64-aa84a155787e","properties":{
+        {"object":"data_source","id":"a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d","properties":{
           "Название":{"id":"title","name":"Название","type":"title","title":{}},
           "Напомнить":{"id":"d","name":"Напомнить","type":"date","date":{}},
           "Приоритет":{"id":"p","name":"Приоритет","type":"select","select":{"options":[]}},
