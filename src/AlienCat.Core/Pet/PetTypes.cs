@@ -5,8 +5,16 @@ namespace AlienCat.Core.Pet;
 public enum PetActivity
 {
     Idle, Walk, Sit, Groom, Stretch, Yawn, Sleep, Fly, Dragged, Fall, Land, Purr, Remind, Happy,
-    YarnPlay, ButterflyHunt, MouseChase, CursorHunt, Hidden,
+    YarnPlay, ButterflyHunt, MouseChase, CursorHunt,
+    ScreenPounce, WallClimb, WebHang, CursorSteal, Away, ChangeOutfit,
+    Hidden,
 }
+
+/// <summary>What the cat is holding on to; decides how the sprite is placed and turned.</summary>
+public enum Surface { Ground, LeftWall, RightWall, Glass, Thread }
+
+/// <summary>Step inside a trick, used for animation choice.</summary>
+public enum TrickPhase { None, Approach, Leap, Cling, Slide, Drop, Climb, Hold, Descend, FlyUp, Gone, Swing, Ascend, Grab, Carry, Leave, Return }
 
 /// <summary>Sub-phase of hunting games, used to pick the animation.</summary>
 public enum HuntPhase { Crouch, Pounce, Puzzled, Caught }
@@ -28,7 +36,10 @@ public sealed record PetContext(
     Vec? Cursor,
     double CursorStillSeconds,
     bool OtherAppFullscreen,
-    bool HasOverdue);
+    bool HasOverdue,
+    double UserIdleSeconds = 0,
+    TrickSettings? Tricks = null,
+    OutfitMode OutfitMode = OutfitMode.None);
 
 public interface IRandom
 {
