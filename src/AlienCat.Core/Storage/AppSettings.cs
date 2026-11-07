@@ -1,3 +1,4 @@
+using AlienCat.Core.Pet;
 using AlienCat.Core.Tasks;
 
 namespace AlienCat.Core.Storage;
@@ -13,6 +14,8 @@ public sealed record AppSettings
     public bool Autostart { get; init; }
     public string? ProtectedToken { get; init; }
     public string? DatabaseUrl { get; init; }
+    public OutfitMode Outfit { get; init; } = OutfitMode.Auto;
+    public TrickSettings Tricks { get; init; } = new();
 
     public bool HasNotion => !string.IsNullOrWhiteSpace(ProtectedToken) && !string.IsNullOrWhiteSpace(DatabaseUrl);
 }

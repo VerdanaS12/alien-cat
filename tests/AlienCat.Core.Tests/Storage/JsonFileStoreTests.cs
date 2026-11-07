@@ -24,6 +24,36 @@ public class JsonFileStoreTests : IDisposable
         Assert.False(s.Autostart);
         Assert.Null(s.ProtectedToken);
         Assert.Null(s.DatabaseUrl);
+        Assert.Equal(AlienCat.Core.Pet.OutfitMode.Auto, s.Outfit);
+        Assert.Equal(new AlienCat.Core.Pet.TrickSettings(), s.Tricks);
+    }
+
+    [Fact]
+    public void Load_OldSettingsWithoutNewFields_KeepsNewDefaults()
+    {
+        var path = _dir.File("settings.json");
+        File.WriteAllText(path, "{\"Scale\": 3, \"CursorHunt\": false}");
+        var s = new JsonFileStore<AppSettings>(path, _log.Add).Load();
+        Assert.Equal(3, s.Scale);
+        Assert.Equal(AlienCat.Core.Pet.OutfitMode.Auto, s.Outfit);
+        Assert.True(s.Tricks.CursorSteal && s.Tricks.WebHang);
+    }
+
+    [Fact]
+    public void SaveThenLoad_RoundTrips_TricksAndOutfit()
+    {
+        var store = new JsonFileStore<AppSettings>(_dir.File("settings.json"), _log.Add);
+        var s = new AppSettings
+        {
+            Outfit = AlienCat.Core.Pet.OutfitMode.Winter,
+            Tricks = new AlienCat.Core.Pet.TrickSettings { CursorSteal = false, Away = false },
+        };
+        store.Save(s);
+        var back = store.Load();
+        Assert.Equal(AlienCat.Core.Pet.OutfitMode.Winter, back.Outfit);
+        Assert.False(back.Tricks.CursorSteal);
+        Assert.False(back.Tricks.Away);
+        Assert.True(back.Tricks.WallClimb);
     }
 
     [Fact]
