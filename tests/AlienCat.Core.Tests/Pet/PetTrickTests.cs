@@ -12,8 +12,9 @@ public class PetTrickTests
     static readonly DateTimeOffset Start = At(2026, 11, 7, 12, 0);
 
     static PetContext Ctx(DateTimeOffset now, Vec? cursor = null, double idle = 0, bool fullscreen = false,
-        TrickSettings? tricks = null, OutfitMode outfit = OutfitMode.None, ActivityLevel level = ActivityLevel.Normal) =>
-        new(now, Kyiv, Screen, S, level, false, cursor, 0, fullscreen, false, idle, tricks, outfit);
+        TrickSettings? tricks = null, OutfitMode outfit = OutfitMode.None, ActivityLevel level = ActivityLevel.Normal,
+        bool button = false) =>
+        new(now, Kyiv, Screen, S, level, false, cursor, 0, fullscreen, false, idle, tricks, outfit, button);
 
     static PetBrain Brain(double x = 500, ScriptedRandom? rng = null) => new(rng ?? new ScriptedRandom(), Start, new Vec(x, 700));
 
@@ -386,5 +387,78 @@ public class PetTrickTests
         new Sim(b).Run(5);
         Assert.Equal(Outfit.None, b.Outfit);
         Assert.DoesNotContain(PetActivity.ChangeOutfit, new[] { b.Activity });
+    }
+
+    // ------------------------------------------------------- review fixes
+
+    [Fact]
+    public void Steal_CursorMovedDuringApproach_NeverYanksItBack()
+    {
+        var b = Brain();
+        var origin = MouthAbove(900, 60);
+        var cursor = origin;
+        b.BeginTrick(PetActivity.CursorSteal, Ctx(Start, cursor, idle: 30));
+        var sim = new Sim(b) { Context = t => Ctx(t, cursor, idle: 30) };
+        sim.Run(0.5);
+        cursor = new Vec(origin.X - 40, origin.Y);     // user nudged the mouse; idle timer still high
+        sim.Run(5);
+        Assert.Null(b.CursorTarget);
+        Assert.DoesNotContain(TrickPhase.Grab, sim.Phases);
+        Assert.DoesNotContain(TrickPhase.Carry, sim.Phases);
+    }
+
+    [Fact]
+    public void Steal_NeverWhileAMouseButtonIsHeld()
+    {
+        var b = Brain();
+        Assert.False(b.BeginTrick(PetActivity.CursorSteal, Ctx(Start, MouthAbove(650, 50), idle: 30, button: true)));
+
+        var cursor = MouthAbove(600, 60);
+        var button = false;
+        b.BeginTrick(PetActivity.CursorSteal, Ctx(Start, cursor, idle: 30));
+        var sim = new Sim(b) { Context = t => Ctx(t, b.CursorTarget ?? cursor, idle: 30, button: button) };
+        sim.Run(5, until: () => b.CursorTarget is not null);
+        Assert.NotNull(b.CursorTarget);
+        button = true;
+        sim.Run(0.05);
+        Assert.Null(b.CursorTarget);
+        Assert.NotEqual(PetActivity.CursorSteal, b.Activity);
+    }
+
+    [Fact]
+    public void Tricks_DisabledInSettingsMidway_StopRightAway()
+    {
+        var b = Brain();
+        b.BeginTrick(PetActivity.Away, Ctx(Start));
+        var sim = new Sim(b) { Context = t => Ctx(t, tricks: new TrickSettings()) };
+        sim.Run(30, until: () => !b.IsVisible);
+        sim.Context = t => Ctx(t, tricks: TrickSettings.AllOff with { WallClimb = true });
+        sim.Run(1);
+        Assert.True(b.IsVisible);
+        sim.Run(10, until: () => b.Activity != PetActivity.Away);
+        Assert.NotEqual(PetActivity.Away, b.Activity);
+
+        var b2 = Brain(x: 300);
+        b2.BeginTrick(PetActivity.WebHang, Ctx(Start));
+        var sim2 = new Sim(b2) { Context = t => Ctx(t, tricks: new TrickSettings()) };
+        sim2.Run(12);
+        sim2.Context = t => Ctx(t, tricks: new TrickSettings { WebHang = false });
+        sim2.Run(5, until: () => b2.Activity is not (PetActivity.WebHang or PetActivity.Fall or PetActivity.Land));
+        Assert.Equal(Surface.Ground, b2.Surface);
+        Assert.Equal(700, b2.Position.Y);
+    }
+
+    [Fact]
+    public void Call_WhileWalkingBack_Hurries()
+    {
+        var b = Brain();
+        b.BeginTrick(PetActivity.Away, Ctx(Start));
+        var sim = new Sim(b);
+        sim.Run(PetBrain.AwayMaxSeconds + 60, dt: 0.25, until: () => b.Trick == TrickPhase.Return);
+        sim.Run(0.1);
+        b.Call();
+        var x0 = b.Position.X;
+        sim.Run(0.5);
+        Assert.True(Math.Abs(b.Position.X - x0) >= PetBrain.ReturnRunSpeed * 0.5 - 2 || b.Activity != PetActivity.Away);
     }
 }

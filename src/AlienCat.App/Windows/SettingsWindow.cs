@@ -45,11 +45,12 @@ internal sealed class SettingsWindow : Window
         _quietTo.Text = settings.Quiet.End.ToString("HH:mm");
         _autostart.IsChecked = autostartOn;
         _outfit.SelectedIndex = (int)settings.Outfit;
-        _pounce.IsChecked = settings.Tricks.ScreenPounce;
-        _wall.IsChecked = settings.Tricks.WallClimb;
-        _web.IsChecked = settings.Tricks.WebHang;
-        _away.IsChecked = settings.Tricks.Away;
-        _steal.IsChecked = settings.Tricks.CursorSteal;
+        var tricks = settings.Tricks ?? new Core.Pet.TrickSettings();
+        _pounce.IsChecked = tricks.ScreenPounce;
+        _wall.IsChecked = tricks.WallClimb;
+        _web.IsChecked = tricks.WebHang;
+        _away.IsChecked = tricks.Away;
+        _steal.IsChecked = tricks.CursorSteal;
         _url.Text = settings.DatabaseUrl ?? "";
 
         var look = new StackPanel();

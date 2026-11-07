@@ -31,6 +31,14 @@ internal static class ScreenInfo
         return unchecked((uint)Environment.TickCount - info.dwTime) / 1000.0;
     }
 
+    /// <summary>True while any mouse button is held down (the cat must never move the cursor then: it would drag things).</summary>
+    public static bool AnyMouseButtonDown()
+    {
+        foreach (var vk in new[] { 0x01, 0x02, 0x04, 0x05, 0x06 })   // left, right, middle, X1, X2
+            if ((Native.GetAsyncKeyState(vk) & 0x8000) != 0) return true;
+        return false;
+    }
+
     /// <summary>Moves the real mouse cursor to a point given in device-independent units.</summary>
     public static void SetCursor(Vec p, double dpiScaleX, double dpiScaleY) =>
         Native.SetCursorPos((int)Math.Round(p.X * dpiScaleX), (int)Math.Round(p.Y * dpiScaleY));

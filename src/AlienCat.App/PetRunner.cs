@@ -18,7 +18,7 @@ internal sealed class PetRunner
     const double ToyFootOffset = 1;
     const double ThreadTopOffset = 1;   // cell pixels between the window top and the tassel holding the thread
     const double ScratchFadeSeconds = 8;
-    const double UserMoveTolerance = 3; // device pixels
+    const double UserMoveTolerance = 1.5; // device pixels; SetCursorPos lands exactly, so any larger gap is the user
 
     readonly PetBrain _brain;
     readonly AnimationCatalog _catalog;
@@ -40,6 +40,7 @@ internal sealed class PetRunner
     bool _fullscreen;
     double _fullscreenCheck;
     double _idleSeconds;
+    bool _buttonDown;
     Point? _cursorSetPx;
     List<(Point A, Point B)> _scratchLines = new();
     double _scratchFade = -1;
@@ -109,7 +110,7 @@ internal sealed class PetRunner
         var dpi = VisualTreeHelper.GetDpi(Pet);
         return new PetContext(DateTimeOffset.Now, TimeZoneInfo.Local, ScreenInfo.WorkArea(), Pet.BaseSize, s.Activity,
             s.CursorHunt, ScreenInfo.Cursor(dpi.DpiScaleX, dpi.DpiScaleY), _cursorStill, _fullscreen, _hasOverdue(),
-            _idleSeconds, s.Tricks, s.Outfit);
+            _idleSeconds, s.Tricks ?? new TrickSettings(), s.Outfit, _buttonDown);
     }
 
     void Tick()
@@ -125,6 +126,7 @@ internal sealed class PetRunner
             try { _fullscreen = ScreenInfo.IsOtherAppFullscreen(); } catch { _fullscreen = false; }
         }
         try { _idleSeconds = ScreenInfo.UserIdleSeconds(); } catch { _idleSeconds = 0; }
+        try { _buttonDown = ScreenInfo.AnyMouseButtonDown(); } catch { _buttonDown = true; }
 
         var dpi = VisualTreeHelper.GetDpi(Pet);
         var cursor = ScreenInfo.Cursor(dpi.DpiScaleX, dpi.DpiScaleY);
@@ -144,7 +146,7 @@ internal sealed class PetRunner
 
         _brain.Update(Context(), dt);
 
-        if (_brain.CursorTarget is { } target && !_fullscreen)
+        if (_brain.CursorTarget is { } target && !_fullscreen && !_buttonDown)
         {
             try
             {
@@ -162,6 +164,13 @@ internal sealed class PetRunner
 
     void UpdateScratches(double dt)
     {
+        if (_fullscreen && _scratchFade >= 0)
+        {
+            _scratchFade = -1;
+            _scratchLines.Clear();
+            if (_scratches.IsVisible) _scratches.Hide();
+            return;
+        }
         if (_brain.Surface == Surface.Glass && _brain.GlassStart is { } start
             && _brain.Trick is TrickPhase.Cling or TrickPhase.Slide)
         {

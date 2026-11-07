@@ -39,7 +39,8 @@ public sealed record PetContext(
     bool HasOverdue,
     double UserIdleSeconds = 0,
     TrickSettings? Tricks = null,
-    OutfitMode OutfitMode = OutfitMode.None);
+    OutfitMode OutfitMode = OutfitMode.None,
+    bool MouseButtonDown = false);
 
 public interface IRandom
 {

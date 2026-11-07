@@ -27,7 +27,7 @@ public sealed class PetBrain
     public const double PounceSlideSpeed = 70;
     public const double PounceDropSeconds = 0.35;
     /// <summary>Claw tips relative to the sprite centre, as a fraction of the drawn sprite size (two per front paw).</summary>
-    public static readonly Vec[] ClawOffsets = [new(-0.31, -0.10), new(-0.24, -0.13), new(0.24, -0.13), new(0.31, -0.10)];
+    public static readonly Vec[] ClawOffsets = [new(-0.30, -0.20), new(-0.26, -0.20), new(0.26, -0.20), new(0.30, -0.20)];
 
     // walls
     public const double ClimbSpeed = 55;
@@ -119,6 +119,16 @@ public sealed class PetBrain
     /// <summary>Where the cat's mouth is on the ground (cursor-carrying point).</summary>
     public Vec Mouth(double spriteSize) => new(Position.X + Facing * 0.2 * spriteSize, Position.Y - 0.4 * spriteSize);
 
+    static bool Allowed(PetActivity a, TrickSettings t) => a switch
+    {
+        PetActivity.ScreenPounce => t.ScreenPounce,
+        PetActivity.WallClimb => t.WallClimb,
+        PetActivity.WebHang => t.WebHang,
+        PetActivity.CursorSteal => t.CursorSteal,
+        PetActivity.Away => t.Away,
+        _ => true,
+    };
+
     static bool IsTrick(PetActivity a) =>
         a is PetActivity.ScreenPounce or PetActivity.WallClimb or PetActivity.WebHang
             or PetActivity.CursorSteal or PetActivity.Away;
@@ -181,6 +191,9 @@ public sealed class PetBrain
                     break;
                 case TrickPhase.FlyUp:
                     FallFromHere(Position);
+                    break;
+                case TrickPhase.Return:
+                    _returnFast = true;
                     break;
             }
             return;
@@ -261,6 +274,13 @@ public sealed class PetBrain
         {
             ToIdleOrReminder();
             return;
+        }
+
+        // a trick switched off in the settings stops at once
+        if (ctx.Tricks is { } allowed && IsTrick(Activity) && !Allowed(Activity, allowed))
+        {
+            if (Activity == PetActivity.Away) Call();
+            else ComeDown();
         }
 
         ActivityTime += dt;
@@ -624,7 +644,7 @@ public sealed class PetBrain
 
     bool CanSteal(PetContext ctx)
     {
-        if (ctx.OtherAppFullscreen || ctx.UserIdleSeconds < StealIdleSeconds || ctx.Cursor is not { } c) return false;
+        if (ctx.OtherAppFullscreen || ctx.MouseButtonDown || ctx.UserIdleSeconds < StealIdleSeconds || ctx.Cursor is not { } c) return false;
         var a = ctx.WorkArea;
         if (c.X < a.Left || c.X > a.Right) return false;
         var above = a.Bottom - 0.4 * ctx.SpriteSize - c.Y;
@@ -634,11 +654,14 @@ public sealed class PetBrain
     void UpdateSteal(PetContext ctx, double dt, double minX, double maxX)
     {
         var size = ctx.SpriteSize;
+        if (ctx.MouseButtonDown && Trick is TrickPhase.Grab or TrickPhase.Carry) { Abort(); return; }
         switch (Trick)
         {
             case TrickPhase.Approach:
             {
-                if (ctx.UserIdleSeconds < 2 || _phaseTime > 8) { Abort(); return; }
+                // any sign of the user (input, a moved cursor, a held button) cancels before we touch the cursor
+                if (ctx.UserIdleSeconds < 2 || _phaseTime > 8 || ctx.MouseButtonDown
+                    || ctx.Cursor is not { } now || now.DistanceTo(_stealOrigin) > 4) { Abort(); return; }
                 var targetX = Math.Clamp(_stealOrigin.X - Facing * 0.2 * size, minX, maxX);
                 var dx = targetX - Position.X;
                 var step = RunSpeed * dt;
