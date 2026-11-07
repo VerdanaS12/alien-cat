@@ -11,12 +11,17 @@ from __future__ import annotations
 
 import json
 import math
+import sys
 from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
+# new_poses.py imports this module by name; make sure it gets *this* copy when run as a script
+sys.modules.setdefault("generate_sprites", sys.modules[__name__])
+
 ROOT = Path(__file__).resolve().parents[2]
+OUTFIT = "none"   # none | astronaut | pilot | winter — set by main() for each sprite sheet
 ASSETS = ROOT / "src" / "AlienCat.App" / "Assets"
 PREVIEW = ROOT / "build" / "art"
 
@@ -483,6 +488,8 @@ def draw_head(c: Canvas, hx_, hy_, eyes="open", mouth="w", ears="up", blush=True
     mm, mnx, mny, mnz = ellipsoid(c, hx_ + 2, hy_ + 5.5, 5.2, 3.4)
     c.paint(mm & m, shade(mnx, mny, mnz, BELLY))
     draw_face(c, hx_, hy_, eyes, mouth, blush, look, tongue)
+    from new_poses import draw_outfit
+    draw_outfit(c, hx_, hy_, squash=squash)
     if glow > 0:
         c.glow(horn_mask, glow)
 
@@ -820,7 +827,12 @@ def build_cat_frames():
 
     def fin(c, mirror=False):
         c.outline()
-        return c.image(mirror)
+        if getattr(c, "symmetric", False):   # front view: right half mirrors the left
+            c.rgba[:, 32:] = c.rgba[:, :32][:, ::-1]
+        img = c.image(mirror)
+        if getattr(c, "vflip", False):       # upside-down poses
+            img = img.transpose(Image.FLIP_TOP_BOTTOM)
+        return img
 
     # idle: breathing, blink on frame 5, tail swish, twinkling stars
     idle = []
@@ -919,6 +931,17 @@ def build_cat_frames():
     add("hunt_puzzled", [fin(sitting(eyes="open", mouth="flat", head=(-1, 1), look=(1, -1),
                                      question=f % 2 == 0, ears="back" if f >= 2 else "up"))
                          for f in range(4)], 300)
+
+    # --- tricks -----------------------------------------------------------
+    from new_poses import front, web_hang
+    add("pounce_leap", [fin(front("leap", f)) for f in range(2)], 120)
+    add("pounce_cling", [fin(front("cling", f)) for f in range(2)], 200)
+    add("pounce_slide", [fin(front("slide", f)) for f in range(4)], 150)
+    add("web_hang", [fin(web_hang(f, 4)) for f in range(4)], 200)
+    add("carry", [fin(standing(f, 8, walk=True, mouth="o", tail_phase=f / 8 * 2 * math.pi,
+                               body_dy=0.6 * abs(math.sin(f / 8 * 2 * math.pi)), stars=f // 2,
+                               wing=-24 + 4 * math.sin(f / 8 * 4 * math.pi), look=(1, 0)))
+                  for f in range(8)], 80)
 
     return clips, ms, loop
 
@@ -1042,6 +1065,9 @@ def fx_frames():
                     c.px(x + dx, y + dy, col)
         sparkles.append(c.image())
     clips["sparkles"], ms["sparkles"] = sparkles, 110
+
+    from new_poses import puff_frames
+    clips["puff"], ms["puff"] = puff_frames(), 110
     return clips, ms
 
 
@@ -1069,6 +1095,12 @@ def pack(clips: dict[str, list[Image.Image]], cell: int, columns: int):
 def main():
     ASSETS.mkdir(parents=True, exist_ok=True)
     PREVIEW.mkdir(parents=True, exist_ok=True)
+    global OUTFIT
+    outfit_sheets = {}
+    for outfit in ("astronaut", "pilot", "winter"):
+        OUTFIT = outfit
+        outfit_sheets[outfit], _, _ = build_cat_frames()
+    OUTFIT = "none"
     cat, cat_ms, cat_loop = build_cat_frames()
     toys, toys_ms = toy_frames()
     fx, fx_ms = fx_frames()
@@ -1077,6 +1109,10 @@ def main():
     toy_sheet, toy_idx = pack(toys, 24, 8)
     fx_sheet, fx_idx = pack(fx, 32, 8)
     cat_sheet.save(ASSETS / "cat.png")
+    for outfit, frames in outfit_sheets.items():
+        sheet, idx = pack(frames, 64, 16)
+        assert idx == cat_idx, "outfit sheets must share the layout of cat.png"
+        sheet.save(ASSETS / f"cat_{outfit}.png")
     toy_sheet.save(ASSETS / "toys.png")
     fx_sheet.save(ASSETS / "fx.png")
 
@@ -1095,6 +1131,8 @@ def main():
         return {"columns": cols, "cell": cell, "frameCount": count}
 
     sheets = {"cat.png": info(cat_idx, 16, 64), "toys.png": info(toy_idx, 8, 24), "fx.png": info(fx_idx, 8, 32)}
+    for outfit in outfit_sheets:
+        sheets[f"cat_{outfit}.png"] = info(cat_idx, 16, 64)
     (ASSETS / "animations.json").write_text(
         json.dumps({"sheets": sheets, "clips": clips_json}, ensure_ascii=False, indent=2), "utf-8")
 
@@ -1104,6 +1142,7 @@ def main():
         ASSETS / "icon.ico", sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (256, 256)])
 
     write_previews(cat, cat_ms, toys, fx)
+    write_trick_previews(cat, cat_ms, outfit_sheets, fx)
     print(f"cat clips: {len(cat)}, frames: {sum(len(v) for v in cat.values())}")
 
 
@@ -1143,6 +1182,37 @@ def write_previews(cat, cat_ms, toys, fx):
                 durations.append(cat_ms[name])
     gif_frames[0].save(PREVIEW / "preview.gif", save_all=True, append_images=gif_frames[1:],
                        duration=durations, loop=0, disposal=2)
+
+
+
+def write_trick_previews(cat, cat_ms, outfit_sheets, fx):
+    """Contact sheet of the new trick clips and of every outfit, plus a GIF of the tricks."""
+    scale, bg = 5, (236, 240, 250, 255)
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 18)
+    except OSError:
+        font = ImageFont.load_default()
+    cell = 64 * scale
+    picks = [("idle", 0), ("walk", 2), ("sit", 0), ("fly", 1), ("sleep", 0), ("pounce_cling", 0), ("web_hang", 0)]
+    rows = [("Без наряда", cat)] + [({"astronaut": "Космонавт", "pilot": "Пилот", "winter": "Зима"}[k], v)
+                                     for k, v in outfit_sheets.items()]
+    img = Image.new("RGBA", (190 + cell * len(picks), cell * len(rows)), bg)
+    d = ImageDraw.Draw(img)
+    for r, (title, clips) in enumerate(rows):
+        d.text((12, r * cell + cell // 2 - 10), title, fill=(40, 50, 90, 255), font=font)
+        for i, (name, f) in enumerate(picks):
+            img.alpha_composite(clips[name][f].resize((cell, cell), Image.NEAREST), (190 + i * cell, r * cell))
+    img.convert("RGB").save(PREVIEW / "outfits.png")
+
+    tricks = ["pounce_leap", "pounce_cling", "pounce_slide", "web_hang", "carry"]
+    tw = max(len(cat[n]) for n in tricks)
+    sheet = Image.new("RGBA", (190 + cell * tw, cell * len(tricks)), bg)
+    d = ImageDraw.Draw(sheet)
+    for r, name in enumerate(tricks):
+        d.text((12, r * cell + cell // 2 - 10), name, fill=(40, 50, 90, 255), font=font)
+        for i, fr in enumerate(cat[name]):
+            sheet.alpha_composite(fr.resize((cell, cell), Image.NEAREST), (190 + i * cell, r * cell))
+    sheet.convert("RGB").save(PREVIEW / "tricks.png")
 
 
 if __name__ == "__main__":

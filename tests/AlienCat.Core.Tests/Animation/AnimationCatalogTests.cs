@@ -72,4 +72,48 @@ public class AnimationCatalogTests
     [Fact]
     public void Get_Unknown_Throws() =>
         Assert.Throws<KeyNotFoundException>(() => Real().Get("nope"));
+
+    [Fact]
+    public void Tricks_UseTheirClips()
+    {
+        var cat = Real();
+        string Clip(PetActivity a, TrickPhase t) => cat.ForActivity(a, false, false, HuntPhase.Crouch, t).Name;
+        Assert.Equal("pounce_leap", Clip(PetActivity.ScreenPounce, TrickPhase.Leap));
+        Assert.Equal("pounce_cling", Clip(PetActivity.ScreenPounce, TrickPhase.Cling));
+        Assert.Equal("pounce_slide", Clip(PetActivity.ScreenPounce, TrickPhase.Slide));
+        Assert.Equal("walk", Clip(PetActivity.WallClimb, TrickPhase.Climb));
+        Assert.Equal("idle", Clip(PetActivity.WallClimb, TrickPhase.Hold));
+        Assert.Equal("fly", Clip(PetActivity.WebHang, TrickPhase.FlyUp));
+        Assert.Equal("web_hang", Clip(PetActivity.WebHang, TrickPhase.Swing));
+        Assert.Equal("carry", Clip(PetActivity.CursorSteal, TrickPhase.Carry));
+        Assert.Equal("hunt_pounce", Clip(PetActivity.CursorSteal, TrickPhase.Grab));
+        Assert.Equal("walk", Clip(PetActivity.Away, TrickPhase.Return));
+        Assert.Equal("fly", Clip(PetActivity.Away, TrickPhase.FlyUp));
+        Assert.Equal("sit", Clip(PetActivity.ChangeOutfit, TrickPhase.None));
+        Assert.Equal("puff", cat.OverlayFor(PetActivity.ChangeOutfit)!.Name);
+    }
+
+    [Fact]
+    public void EveryTrickPhase_HasClip()
+    {
+        var cat = Real();
+        foreach (var a in Enum.GetValues<PetActivity>())
+            foreach (var t in Enum.GetValues<TrickPhase>())
+                Assert.NotNull(cat.ForActivity(a, false, false, HuntPhase.Crouch, t));
+    }
+
+    [Fact]
+    public void OutfitSheets_ExistWithSameLayout()
+    {
+        var cat = Real();
+        var idle = cat.Get("idle");
+        Assert.Equal("cat.png", cat.SheetFor(idle, Outfit.None));
+        Assert.Equal("toys.png", cat.SheetFor(cat.Get("yarn_roll"), Outfit.Pilot));
+        foreach (var o in new[] { Outfit.Astronaut, Outfit.Pilot, Outfit.Winter })
+        {
+            var sheet = cat.SheetFor(idle, o);
+            Assert.Equal("cat_" + o.ToString().ToLowerInvariant() + ".png", sheet);
+            Assert.Equal(cat.Sheets["cat.png"], cat.Sheets[sheet]);
+        }
+    }
 }

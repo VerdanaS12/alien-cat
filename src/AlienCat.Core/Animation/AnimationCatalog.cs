@@ -51,8 +51,28 @@ public sealed class AnimationCatalog
     public AnimationClip Get(string name) =>
         Clips.TryGetValue(name, out var c) ? c : throw new KeyNotFoundException($"No animation clip '{name}'");
 
-    public AnimationClip ForActivity(PetActivity a, bool sad, bool nagging, HuntPhase phase) => Get(a switch
+    /// <summary>Sheet to draw a clip from: cat clips come from the sheet of the current outfit.</summary>
+    public string SheetFor(AnimationClip clip, Outfit outfit) =>
+        clip.Sheet == "cat.png" && outfit != Outfit.None ? $"cat_{outfit.ToString().ToLowerInvariant()}.png" : clip.Sheet;
+
+    public AnimationClip ForActivity(PetActivity a, bool sad, bool nagging, HuntPhase phase, TrickPhase trick = TrickPhase.None) => Get(a switch
     {
+        PetActivity.ScreenPounce => trick switch
+        {
+            TrickPhase.Leap => "pounce_leap",
+            TrickPhase.Cling => "pounce_cling",
+            _ => "pounce_slide",
+        },
+        PetActivity.WallClimb => trick == TrickPhase.Hold ? "idle" : "walk",
+        PetActivity.WebHang => trick is TrickPhase.FlyUp or TrickPhase.Gone ? "fly" : "web_hang",
+        PetActivity.CursorSteal => trick switch
+        {
+            TrickPhase.Grab => "hunt_pounce",
+            TrickPhase.Carry => "carry",
+            _ => "walk",
+        },
+        PetActivity.Away => trick == TrickPhase.FlyUp ? "fly" : "walk",
+        PetActivity.ChangeOutfit => "sit",
         PetActivity.Idle => sad ? "sad" : "idle",
         PetActivity.Sit => sad ? "sad" : "sit",
         PetActivity.Walk => "walk",
@@ -84,6 +104,7 @@ public sealed class AnimationCatalog
         PetActivity.Sleep => Get("zzz"),
         PetActivity.Purr => Get("hearts"),
         PetActivity.Happy => Get("sparkles"),
+        PetActivity.ChangeOutfit => Get("puff"),
         _ => null,
     };
 

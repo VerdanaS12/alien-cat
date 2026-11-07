@@ -3,7 +3,7 @@
     "cat.png": {
       "columns": 16,
       "cell": 64,
-      "frameCount": 105
+      "frameCount": 125
     },
     "toys.png": {
       "columns": 8,
@@ -13,7 +13,22 @@
     "fx.png": {
       "columns": 8,
       "cell": 32,
-      "frameCount": 12
+      "frameCount": 18
+    },
+    "cat_astronaut.png": {
+      "columns": 16,
+      "cell": 64,
+      "frameCount": 125
+    },
+    "cat_pilot.png": {
+      "columns": 16,
+      "cell": 64,
+      "frameCount": 125
+    },
+    "cat_winter.png": {
+      "columns": 16,
+      "cell": 64,
+      "frameCount": 125
     }
   },
   "clips": {
@@ -302,6 +317,71 @@
       "frameMs": 300,
       "loop": true
     },
+    "pounce_leap": {
+      "sheet": "cat.png",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "frames": [
+        105,
+        106
+      ],
+      "frameMs": 120,
+      "loop": true
+    },
+    "pounce_cling": {
+      "sheet": "cat.png",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "frames": [
+        107,
+        108
+      ],
+      "frameMs": 200,
+      "loop": true
+    },
+    "pounce_slide": {
+      "sheet": "cat.png",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "frames": [
+        109,
+        110,
+        111,
+        112
+      ],
+      "frameMs": 150,
+      "loop": true
+    },
+    "web_hang": {
+      "sheet": "cat.png",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "frames": [
+        113,
+        114,
+        115,
+        116
+      ],
+      "frameMs": 200,
+      "loop": true
+    },
+    "carry": {
+      "sheet": "cat.png",
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "frames": [
+        117,
+        118,
+        119,
+        120,
+        121,
+        122,
+        123,
+        124
+      ],
+      "frameMs": 80,
+      "loop": true
+    },
     "yarn_roll": {
       "sheet": "toys.png",
       "frameWidth": 24,
@@ -380,6 +460,21 @@
         9,
         10,
         11
+      ],
+      "frameMs": 110,
+      "loop": true
+    },
+    "puff": {
+      "sheet": "fx.png",
+      "frameWidth": 32,
+      "frameHeight": 32,
+      "frames": [
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
       ],
       "frameMs": 110,
       "loop": true
