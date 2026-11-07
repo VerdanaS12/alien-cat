@@ -14,13 +14,14 @@ internal sealed class SpriteSheets
 
     public SpriteSheets(AnimationCatalog catalog) => _catalog = catalog;
 
-    public BitmapSource Frame(AnimationClip clip, int frameIndex)
+    public BitmapSource Frame(AnimationClip clip, int frameIndex, string? sheetName = null)
     {
-        var key = (clip.Sheet, frameIndex);
+        var name = sheetName ?? clip.Sheet;
+        var key = (name, frameIndex);
         if (_frames.TryGetValue(key, out var cached)) return cached;
 
-        var sheet = Sheet(clip.Sheet);
-        var info = _catalog.Sheets[clip.Sheet];
+        var sheet = Sheet(name);
+        var info = _catalog.Sheets[name];
         var (x, y) = clip.CellOrigin(frameIndex, info);
         var frame = new CroppedBitmap(sheet, new Int32Rect(x, y, info.Cell, info.Cell));
         frame.Freeze();

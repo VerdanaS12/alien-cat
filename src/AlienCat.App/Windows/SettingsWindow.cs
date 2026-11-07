@@ -20,6 +20,12 @@ internal sealed class SettingsWindow : Window
     readonly TextBox _quietFrom = Time();
     readonly TextBox _quietTo = Time();
     readonly CheckBox _autostart = new() { Content = "Запускать вместе с Windows" };
+    readonly ComboBox _outfit = Combo("Сам выбирает", "Без наряда", "Шлем космонавта", "Шлем пилота", "Зимний комплект");
+    readonly CheckBox _pounce = new() { Content = "Прыгать на экран и царапаться" };
+    readonly CheckBox _wall = new() { Content = "Лазать по стенкам экрана" };
+    readonly CheckBox _web = new() { Content = "Спускаться на паутинке" };
+    readonly CheckBox _away = new() { Content = "Иногда уходить погулять" };
+    readonly CheckBox _steal = new() { Content = "Воровать курсор (редко)" };
     readonly PasswordBox _token = new() { Padding = new Thickness(4) };
     readonly TextBox _url = new() { Padding = new Thickness(4) };
     readonly TextBlock _status = Ui.Label("", 13);
@@ -38,6 +44,12 @@ internal sealed class SettingsWindow : Window
         _quietFrom.Text = settings.Quiet.Start.ToString("HH:mm");
         _quietTo.Text = settings.Quiet.End.ToString("HH:mm");
         _autostart.IsChecked = autostartOn;
+        _outfit.SelectedIndex = (int)settings.Outfit;
+        _pounce.IsChecked = settings.Tricks.ScreenPounce;
+        _wall.IsChecked = settings.Tricks.WallClimb;
+        _web.IsChecked = settings.Tricks.WebHang;
+        _away.IsChecked = settings.Tricks.Away;
+        _steal.IsChecked = settings.Tricks.CursorSteal;
         _url.Text = settings.DatabaseUrl ?? "";
 
         var look = new StackPanel();
@@ -52,6 +64,11 @@ internal sealed class SettingsWindow : Window
         quietRow.Children.Add(_quietTo);
         look.Children.Add(Spaced(quietRow));
         look.Children.Add(Spaced(_autostart));
+
+        var fun = new StackPanel();
+        fun.Children.Add(Ui.Label("Наряды и трюки", 15, true));
+        fun.Children.Add(Field("Наряд", _outfit));
+        foreach (var box in new[] { _pounce, _wall, _web, _away, _steal }) fun.Children.Add(Spaced(box));
 
         var notion = new StackPanel();
         notion.Children.Add(Ui.Label("Notion", 15, true));
@@ -77,9 +94,16 @@ internal sealed class SettingsWindow : Window
         var root = new StackPanel();
         root.Children.Add(Ui.Card(look));
         root.Children.Add(new Border { Height = 12 });
+        root.Children.Add(Ui.Card(fun));
+        root.Children.Add(new Border { Height = 12 });
         root.Children.Add(Ui.Card(notion));
         root.Children.Add(Ui.ButtonRow(cancel, save));
-        Content = new Border { Padding = new Thickness(16), Child = root };
+        Content = new ScrollViewer
+        {
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            MaxHeight = SystemParameters.WorkArea.Height - 60,
+            Content = new Border { Padding = new Thickness(16), Child = root },
+        };
         Loaded += (_, _) => Activate();
     }
 
@@ -130,6 +154,15 @@ internal sealed class SettingsWindow : Window
             CursorHunt = _cursor.IsChecked == true,
             Quiet = new QuietHours(_quiet.IsChecked == true, from, to),
             Autostart = _autostart.IsChecked == true,
+            Outfit = (Core.Pet.OutfitMode)Math.Max(0, _outfit.SelectedIndex),
+            Tricks = new Core.Pet.TrickSettings
+            {
+                ScreenPounce = _pounce.IsChecked == true,
+                WallClimb = _wall.IsChecked == true,
+                WebHang = _web.IsChecked == true,
+                Away = _away.IsChecked == true,
+                CursorSteal = _steal.IsChecked == true,
+            },
             DatabaseUrl = url.Length > 0 ? url : null,
         };
         var token = _token.Password.Trim();

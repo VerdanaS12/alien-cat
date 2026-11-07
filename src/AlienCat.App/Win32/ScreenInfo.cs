@@ -23,6 +23,18 @@ internal static class ScreenInfo
         return new Vec(p.X / dpiScaleX, p.Y / dpiScaleY);
     }
 
+    /// <summary>Seconds since the user last touched the keyboard or mouse.</summary>
+    public static double UserIdleSeconds()
+    {
+        var info = new Native.LASTINPUTINFO { cbSize = (uint)System.Runtime.InteropServices.Marshal.SizeOf<Native.LASTINPUTINFO>() };
+        if (!Native.GetLastInputInfo(ref info)) return 0;
+        return unchecked((uint)Environment.TickCount - info.dwTime) / 1000.0;
+    }
+
+    /// <summary>Moves the real mouse cursor to a point given in device-independent units.</summary>
+    public static void SetCursor(Vec p, double dpiScaleX, double dpiScaleY) =>
+        Native.SetCursorPos((int)Math.Round(p.X * dpiScaleX), (int)Math.Round(p.Y * dpiScaleY));
+
     /// <summary>True when another application's window covers its whole monitor (game, video, presentation).</summary>
     public static bool IsOtherAppFullscreen()
     {

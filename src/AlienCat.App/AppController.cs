@@ -37,6 +37,7 @@ internal sealed class AppController : IDisposable
     TaskSync? _sync;
     ReminderSign? _sign;
     DateTimeOffset _signShownAt;
+    bool _signSeen;
     TodayWindow? _today;
     SettingsWindow? _settingsWindow;
     QuickNoteWindow? _note;
@@ -56,7 +57,7 @@ internal sealed class AppController : IDisposable
         _runner = new PetRunner(brain, catalog, () => _settings, HasOverdue);
         _runner.QuickNoteRequested += ShowQuickNote;
 
-        _tray = new TrayIcon(ShowQuickNote, ShowToday, ShowSettings, Exit);
+        _tray = new TrayIcon(() => Brain.Call(), ShowQuickNote, ShowToday, ShowSettings, Exit);
 
         _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(60) };
         _pollTimer.Tick += async (_, _) => await PollAsync();
@@ -160,7 +161,7 @@ internal sealed class AppController : IDisposable
         if (_sync is null) return;
         if (_sign is not null)
         {
-            Brain.Nagging = ReminderEngine.IsNagging(_signShownAt, now);
+            Brain.Nagging = _signSeen && ReminderEngine.IsNagging(_signShownAt, now);
             return;
         }
         if (Brain.Activity is PetActivity.Hidden or PetActivity.Dragged) return;
@@ -177,16 +178,22 @@ internal sealed class AppController : IDisposable
         _sign.Done += () => _ = CompleteFromSignAsync();
         _sign.Snoozed += Snooze;
         _signShownAt = DateTimeOffset.Now;
+        _signSeen = false;
         Brain.StartReminder();
-        _sign.Show();
-        FollowSign();
+        FollowSign();   // shows the sign as soon as the cat is holding it
         _log.Info($"Напоминание: {reminder.Task.Title} ({reminder.Kind})");
     }
 
     void FollowSign()
     {
         if (_sign is null) return;
-        var hidden = Brain.Activity == PetActivity.Hidden;
+        // the sign only shows once the cat is actually holding it (it may first have to come back or land)
+        var hidden = Brain.Activity != PetActivity.Remind;
+        if (!hidden && !_signSeen)
+        {
+            _signSeen = true;
+            _signShownAt = DateTimeOffset.Now;
+        }
         if (hidden && _sign.IsVisible) _sign.Hide();
         else if (!hidden && !_sign.IsVisible) _sign.Show();
         var area = ScreenInfo.WorkArea();

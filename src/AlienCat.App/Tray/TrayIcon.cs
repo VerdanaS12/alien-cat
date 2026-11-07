@@ -7,10 +7,11 @@ internal sealed class TrayIcon : IDisposable
 {
     readonly WinForms.NotifyIcon _icon;
 
-    public TrayIcon(Action addNote, Action today, Action settings, Action exit)
+    public TrayIcon(Action call, Action addNote, Action today, Action settings, Action exit)
     {
         using var stream = typeof(TrayIcon).Assembly.GetManifestResourceStream("icon.ico");
         var menu = new WinForms.ContextMenuStrip();
+        menu.Items.Add("Позвать котика", null, (_, _) => call());
         menu.Items.Add("Добавить заметку", null, (_, _) => addNote());
         menu.Items.Add("Задачи на сегодня", null, (_, _) => today());
         menu.Items.Add("Настройки", null, (_, _) => settings());
